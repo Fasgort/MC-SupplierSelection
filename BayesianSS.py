@@ -1,26 +1,25 @@
 # -*- coding: utf-8 -*-
-import pymc as mc
+import pymc
 import ss_data as data
 
-def score_eval(cost = c, delivery_time = d, guarantee = g, quality = q):
-    value = (c/9 + d/2 + g + q/2)/4
-    return value
+cost = data.default_supplier_data[:,0]
+delivery_time = data.default_supplier_data[:,1]
+guarantee = data.default_supplier_data[:,2]
+quality = data.default_supplier_data[:,3]
 
-score = pymc.Deterministic(eval = score_eval,
-                  name = 'supplier_score',
-                  parents = {'cost': cost,
-                          'delivery_time': delivery_time,
-                          'guarantee': guarantee,
-                          'quality': quality},
-                  doc = 'The score the supplier obtains, based in cost, delivery time, guarantee and quality.',
-                  trace = True,
-                  verbose = 0,
-                  dtype=float,
-                  plot=False,
-                  cache_depth = 2)
+supplier = pymc.DiscreteUniform('supplier', 
+                                lower=0,
+                                upper=data.default_supplier_data.shape[0]-1,
+                                plot=False,
+                                doc='Supplier being evaluated.')
 
-#cost =
-#delivery_time =
-#guarantee =
-#quality =
-#M = mc.MCMC([score, cost, delivery_time, guarantee, quality])
+@pymc.deterministic(plot=True)
+def score(s=supplier):
+    return (cost[s]/9 + delivery_time[s]/2 + guarantee[s] + quality[s]/2)/4
+
+M = pymc.MCMC(set([score, supplier]))
+
+for supplier in range(data.default_supplier_data.shape[0]):
+    M.get_node('supplier').value = supplier
+    score = M.get_node('score').value
+    print("Para el proveedor " + str(supplier) + " obtenemos la puntuación: " + str(score) + " (0-peor, 1-mejor)")
